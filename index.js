@@ -421,8 +421,7 @@ const main = async () => {
     ];
 
   // Randomly decide whether to make the blogpost short or long
-  /* const isShort = Math.random() > 0.7; */
-  const isShort = true;
+  const isShort = Math.random() > 0.7;
 
   const subject = await generateSubject(init);
 
