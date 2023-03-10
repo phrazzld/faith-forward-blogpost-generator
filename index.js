@@ -47,6 +47,15 @@ const GENERATE_SUBJECT = `Come up with a totally fresh, unique, random, interest
 
 Write the subject as a title, no description. The title should be high quality, creative, unique, and engaging.`;
 
+const GENERATE_CUSTOM_SUBJECT = `Come up with a totally fresh, unique, interesting subject that will be the focus of a blog post on a website called Faith Forward. It should be based on the following general direction / concept / input, but still tied into faith at some level:
+
+DIRECTION:
+"""
+{DIRECTION}
+"""
+
+Write the subject as a title, no description. The title should be high quality, creative, unique, and engaging.`;
+
 const GENERATE_OUTLINE = `Come up with an outline for a creative and engaging blog post about the following subject: 
 
 SUBJECT:
@@ -168,13 +177,13 @@ const WRITE_REFINED_CONCLUSION = `${WRITE_REFINED_PREFIX}
 Write a better conclusion. Do not include the title of the section: just the contents of the section.`;
 
 // Generate a random subject
-const generateSubject = async (init) => {
+const generateSubject = async (init, direction = null) => {
   console.log("Generating subject...");
   try {
     const response = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       max_tokens: 3000,
-      temperature: 0.9,
+      temperature: 1.5,
       messages: [
         {
           role: "system",
@@ -182,7 +191,9 @@ const generateSubject = async (init) => {
         },
         {
           role: "user",
-          content: GENERATE_SUBJECT,
+          content: direction
+            ? GENERATE_CUSTOM_SUBJECT.replace("{DIRECTION}", direction)
+            : GENERATE_SUBJECT,
         },
       ],
     });
@@ -402,7 +413,13 @@ const generateShortBlogPost = async (init, subject) => {
       ],
     });
 
-    const post = refinedResponse.data.choices[0].message?.content.trim();
+    // Write post with subject as title
+    // Strip the title of quotation marks, trim it, format it
+    // Format the whole post as markdown
+    const title = subject.replace(/"/g, "").trim();
+    let post = `# ${title}\n\n`;
+    post += refinedResponse.data.choices[0].message?.content.trim();
+
     return post;
   } catch (error) {
     console.error(error);
@@ -423,7 +440,12 @@ const main = async () => {
   // Randomly decide whether to make the blogpost short or long
   const isShort = Math.random() > 0.7;
 
-  const subject = await generateSubject(init);
+  // If the user running this script passed in a direction, pass that to generateSubject
+  const direction = process.argv[2];
+
+  let subject = await generateSubject(init, direction);
+  // Format the subject. Remove quotation marks, trim it
+  subject = subject.replace(/"/g, "").trim();
 
   if (isShort) {
     post = await generateShortBlogPost(init, subject);
@@ -431,11 +453,16 @@ const main = async () => {
     const outline = await generateOutline(init, subject);
     post = await generateBlogPost(init, outline);
   }
-  // Write the post to a local file named after the date and the subject
-  fs.writeFileSync(
-    `./posts/${new Date().toISOString().split("T")[0]}-${subject}.md`,
-    post
-  );
+
+  // If the posts directory doesn't exist, create it
+  if (!fs.existsSync("./posts")) {
+    fs.mkdirSync("./posts");
+  }
+
+  // Write the post to a local file with the date, time, and subject in the filename
+  const date = new Date().toISOString().split("T")[0];
+  const time = new Date().toISOString().split("T")[1].split(".")[0];
+  fs.writeFileSync(`./posts/${date}-${time}-${subject}.md`, post);
 };
 
 main();
