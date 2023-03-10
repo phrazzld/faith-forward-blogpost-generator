@@ -17,6 +17,134 @@ You possess extensive knowledge of various social media platforms, email marketi
 
 Your passion for creating compelling content and using technology to reach and engage your target audience makes you a valuable asset to any organization looking to promote Christian faith content online.`;
 
+const GENERATE_SUBJECT = `Come up with a totally fresh, unique, random, interesting subject that could be the focus of a blog post on a website called Faith Forward.
+
+Write the subject as a title, no description.`;
+
+const GENERATE_OUTLINE = `Come up with an outline for a creative and engaging blog post about the following subject: 
+
+SUBJECT:
+"""
+{SUBJECT}
+"""
+
+Format your response in JSON. Each section should have two fields: "title" and "points". The "title" field should be a string representing the title of the section -- it should include no numbering, just the title. The "points" field should be a string representing the points to be made in the section.
+
+For example:
+"""
+{
+  "title": "Title of the blog post",
+  "sections": [
+    {
+      "title": "Title of the first section",
+      "points": "Here is a point. Here is another."
+    },
+    ...
+  ]
+}
+"""
+
+Now: write the outline.`;
+
+const WRITE_CONCLUSION = `You are writing a blogpost with the following title:
+
+BLOGPOST TITLE:
+"""
+{BLOGPOST_TITLE}
+"""
+
+You are currently writing the section with the title:
+
+SECTION TITLE:
+"""
+{SECTION_TITLE}
+"""
+
+Write the contents of the section. Expand on the following points:
+
+POINTS:
+"""
+{POINTS}
+"""
+
+This is the last section of the blog post. Write a conclusion that summarizes the main points of the post. The outline of the post is:
+
+POST OUTLINE:
+"""
+{POST_OUTLINE}
+"""
+
+Write the conclusion. Do not include the title of the section: just the contents of the section.`;
+
+const WRITE_REFINED_CONCLUSION = `You are writing a blogpost with the following title:
+
+BLOGPOST TITLE:
+"""
+{BLOGPOST_TITLE}
+"""
+
+You are currently writing the section with the title:
+
+SECTION TITLE:
+"""
+{SECTION_TITLE}
+"""
+
+Your first draft is:
+"""
+{FIRST_DRAFT}
+"""
+
+Your first draft has problems. It's amateurish. It's formulaic. You're a talented writer. Make it better. Make it original, give it your own voice, and make it interesting. You can do it!
+
+Write a better conclusion. Do not include the title of the section: just the contents of the section.`;
+
+const WRITE_SECTION = `You are writing a blogpost with the following title:
+
+BLOGPOST TITLE:
+"""
+{BLOGPOST_TITLE}
+"""
+
+You are currently writing the section with the title:
+
+SECTION TITLE:
+"""
+{SECTION_TITLE}
+"""
+
+Write the contents of the section. Expand on the following points:
+
+POINTS:
+"""
+{POINTS}
+"""
+
+Write the section. Do not include the title of the section: just the contents of the section.`;
+
+const WRITE_REFINED_SECTION = `You are writing a blogpost with the following title:
+
+BLOGPOST TITLE:
+"""
+{BLOGPOST_TITLE}
+"""
+
+You are currently writing the section with the title:
+
+SECTION TITLE:
+"""
+{SECTION_TITLE}
+"""
+
+Your first draft is:
+"""
+{FIRST_DRAFT}
+"""
+
+Your first draft has problems. It's amateurish. It's formulaic. You're a talented writer. Make it better. Make it original, give it your own voice, and make it interesting. You can do it!
+
+Write a better section. Do not include the title of the section: just the contents of the section.`;
+
 // Generate a random subject
 const generateSubject = async () => {
   console.log("Generating subject...");
@@ -32,15 +160,12 @@ const generateSubject = async () => {
         },
         {
           role: "user",
-          content: `Come up with a totally fresh, unique, random, interesting subject that could be the focus of a blog post on a website called Faith Forward.
-
-Write the subject as a title, no description.`,
+          content: GENERATE_SUBJECT,
         },
       ],
     });
 
     const subject = response.data.choices[0].message?.content.trim();
-    console.log("Subject: ", subject);
     return subject;
   } catch (error) {
     console.error(error);
@@ -61,30 +186,7 @@ const generateOutline = async (subject) => {
         },
         {
           role: "user",
-          content: `Come up with an outline for a creative and engaging blog post about the following subject: 
-
-SUBJECT:
-"""
-${subject}
-"""
-
-Format your response in JSON. Each section should have two fields: "title" and "points". The "title" field should be a string representing the title of the section -- it should include no numbering, just the title. The "points" field should be a string representing the points to be made in the section.
-
-For example:
-"""
-{
-  "title": "Title of the blog post",
-  "sections": [
-    {
-      "title": "Title of the first section",
-      "points": "Here is a point. Here is another."
-    },
-    ...
-  ]
-}
-"""
-
-Now: write the outline.`,
+          content: GENERATE_OUTLINE.replace("{SUBJECT}", subject),
         },
         {
           role: "assistant",
@@ -99,7 +201,6 @@ Now: write the outline.`,
     });
 
     const outline = response.data.choices[0].message?.content.trim();
-    console.log("Outline: ", outline);
     return outline;
   } catch (error) {
     console.error(error);
@@ -109,7 +210,7 @@ Now: write the outline.`,
 
 // Generate a blog post from a subject and outline
 const generateBlogPost = async (outline) => {
-  console.log("Generating blog post...");
+  console.log(`Generating blog post for outline ${outline}\n...`);
   try {
     let post;
 
@@ -143,35 +244,10 @@ const generateBlogPost = async (outline) => {
             },
             {
               role: "user",
-              content: `You are writing a blogpost with the following title:
-
-TITLE:
-"""
-${title}
-"""
-
-You are currently writing the section with the title:
-
-SECTION TITLE:
-"""
-${section.title}
-"""
-
-Write the contents of the section. Expand on the following points:
-
-POINTS:
-"""
-${section.points}
-"""
-
-This is the last section of the blog post. Write a conclusion that summarizes the main points of the post. The outline of the post is:
-
-POST OUTLINE:
-"""
-${sectionTitles.join("\n")}
-"""
-
-Write the conclusion. Do not include the title of the section: just the contents of the section.`,
+              content: WRITE_CONCLUSION.replace("{BLOGPOST_TITLE}", title)
+                .replace("{SECTION_TITLE}", section.title)
+                .replace("{POINTS}", section.points)
+                .replace("{POST_OUTLINE}", sectionTitles.join("\n")),
             },
           ],
         });
@@ -189,28 +265,12 @@ Write the conclusion. Do not include the title of the section: just the contents
             },
             {
               role: "user",
-              content: `You are writing a blogpost with the following title:
-
-TITLE:
-"""
-${title}
-"""
-
-You are currently writing the section with the title:
-
-SECTION TITLE:
-"""
-${section.title}
-"""
-
-Your first draft is:
-"""
-${conclusion}
-"""
-
-Your first draft has problems. It's amateurish. It's formulaic. You're a talented writer. Make it better. Make it original, give it your own voice, and make it interesting. You can do it!
-
-Write a better conclusion. Do not include the title of the section: just the contents of the section.`,
+              content: WRITE_REFINED_CONCLUSION.replace(
+                "{BLOGPOST_TITLE}",
+                title
+              )
+                .replace("{SECTION_TITLE}", section.title)
+                .replace("{FIRST_DRAFT}", conclusion),
             },
           ],
         });
@@ -236,28 +296,9 @@ Write a better conclusion. Do not include the title of the section: just the con
           },
           {
             role: "user",
-            content: `You are writing a blogpost with the following title:
-
-TITLE:
-"""
-${title}
-"""
-
-You are currently writing the section with the title:
-
-SECTION TITLE:
-"""
-${section.title}
-"""
-
-Write the contents of the section. Expand on the following points:
-
-POINTS:
-"""
-${section.points}
-"""
-
-Write the section. Do not include the title of the section: just the contents of the section.`,
+            content: WRITE_SECTION.replace("{BLOGPOST_TITLE}", title)
+              .replace("{SECTION_TITLE}", section.title)
+              .replace("{POINTS}", section.points),
           },
         ],
       });
@@ -276,28 +317,9 @@ Write the section. Do not include the title of the section: just the contents of
           },
           {
             role: "user",
-            content: `You are writing a blogpost with the following title:
-
-TITLE:
-"""
-${title}
-"""
-
-You are currently writing the section with the title:
-
-SECTION TITLE:
-"""
-${section.title}
-"""
-
-Your first draft is:
-"""
-${sectionContent}
-"""
-
-Your first draft has problems. It's amateurish. It's formulaic. You're a talented writer. Make it better. Make it original, give it your own voice, and make it interesting. You can do it!
-
-Write a better section. Do not include the title of the section: just the contents of the section.`,
+            content: WRITE_REFINED_SECTION.replace("{BLOGPOST_TITLE}", title)
+              .replace("{SECTION_TITLE}", section.title)
+              .replace("{FIRST_DRAFT}", sectionContent),
           },
         ],
       });
@@ -318,9 +340,7 @@ Write a better section. Do not include the title of the section: just the conten
 
 const main = async () => {
   const subject = await generateSubject();
-  console.log("\n");
   const outline = await generateOutline(subject);
-  console.log("\n");
   const post = await generateBlogPost(outline);
   // Write the post to a local file named after the date and the subject
   fs.writeFileSync(
