@@ -45,7 +45,7 @@ const SYSTEM_INITS = {
 
 const GENERATE_SUBJECT = `Come up with a totally fresh, unique, random, interesting subject that will be the focus of a blog post on a website called Faith Forward. It should be creative and compelling, it should be something that you would be excited to write about, and it should be something that others will be excited to read.
 
-Write the subject as a title, no description.`;
+Write the subject as a title, no description. The title should be high quality, creative, unique, and engaging.`;
 
 const GENERATE_OUTLINE = `Come up with an outline for a creative and engaging blog post about the following subject: 
 
@@ -106,6 +106,37 @@ Write the conclusion. Do not include the title of the section: just the contents
 const WRITE_SECTION = `${WRITE_SECTION_PREFIX}
 
 Write the section. Do not include the title of the section: just the contents of the section.`;
+
+const WRITE_SHORT_BLOGPOST = `You are writing a blog post about the following subject:
+
+SUBJECT:
+"""
+{SUBJECT}
+"""
+
+Write an extensive blog post on this subject. It should be creative, unique, and engaging.`;
+
+const WRITE_REFINED_SHORT_BLOGPOST = `You are writing a blogpost with the following title:
+
+BLOGPOST TITLE:
+"""
+{BLOGPOST_TITLE}
+"""
+
+Your first draft is:
+"""
+{FIRST_DRAFT}
+"""
+
+Your first draft has problems. It's amateurish. It's formulaic. You're a talented writer. Make it better. Make it original, give it your own voice, and make it interesting.
+
+Do not use formulaic writing crutches like "In conclusion", "To summarize", "Firstly", "Secondly", "Thirdly", "In the end", "In summary", "To conclude", "To summarize", "To sum up", "In summary", or anything like that.
+
+Write more naturally, more conversationally.
+
+You can do it!
+
+Write a better blogpost. Do not include the title of the post: just the contents of the post.`;
 
 const WRITE_REFINED_PREFIX = `You are writing a blogpost with the following title:
 
@@ -329,7 +360,58 @@ const generateBlogPost = async (init, outline) => {
   }
 };
 
+// Generate a short blog post from a subject
+const generateShortBlogPost = async (init, subject) => {
+  console.log(`Generating short blog post for subject ${subject}...`);
+  try {
+    const response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      max_tokens: 3000,
+      temperature: 0.8,
+      messages: [
+        {
+          role: "system",
+          content: init,
+        },
+        {
+          role: "user",
+          content: WRITE_SHORT_BLOGPOST.replace("{SUBJECT}", subject),
+        },
+      ],
+    });
+
+    const postDraft = response.data.choices[0].message?.content.trim();
+
+    // Send the section back to GPT for refinement
+    const refinedResponse = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      max_tokens: 3000,
+      temperature: 0.8,
+      messages: [
+        {
+          role: "system",
+          content: init,
+        },
+        {
+          role: "user",
+          content: WRITE_REFINED_SHORT_BLOGPOST.replace(
+            "{BLOGPOST_TITLE}",
+            subject
+          ).replace("{FIRST_DRAFT}", postDraft),
+        },
+      ],
+    });
+
+    const post = refinedResponse.data.choices[0].message?.content.trim();
+    return post;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error.message);
+  }
+};
+
 const main = async () => {
+  let post;
   // Randomly select an init from SYSTEM_INITS
   const init =
     SYSTEM_INITS[
@@ -338,9 +420,18 @@ const main = async () => {
       ]
     ];
 
+  // Randomly decide whether to make the blogpost short or long
+  /* const isShort = Math.random() > 0.7; */
+  const isShort = true;
+
   const subject = await generateSubject(init);
-  const outline = await generateOutline(init, subject);
-  const post = await generateBlogPost(init, outline);
+
+  if (isShort) {
+    post = await generateShortBlogPost(init, subject);
+  } else {
+    const outline = await generateOutline(init, subject);
+    post = await generateBlogPost(init, outline);
+  }
   // Write the post to a local file named after the date and the subject
   fs.writeFileSync(
     `./posts/${new Date().toISOString().split("T")[0]}-${subject}.md`,
