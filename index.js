@@ -5,7 +5,6 @@ const fs = require("fs");
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Modularize openai api calling to reduce boilerplate code writing
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -56,6 +55,12 @@ DIRECTION:
 
 Write the subject as a title, no description. The title should be high quality, creative, unique, and engaging.`;
 
+const GENERATE_DESCRIPTION = `You are a content manager for a Christian blog called Faith Forward. You've already written a post titled "{TITLE}". Here is the summary:
+"{SUMMARY}"
+
+Now, write a one to two sentence synopsis/description for this post. It should be unique, creative, and engaging while avoiding formulaic description verbs like "Discover", "Unlock", and "Find". 
+Be sure to limit yourself to around 140 characters, and be concise, sophisticated, and engaging.`
+
 const GENERATE_OUTLINE = `Come up with an outline for a creative and engaging blog post about the following subject: 
 
 SUBJECT:
@@ -100,7 +105,9 @@ Write the contents of the section. Expand on the following points:
 POINTS:
 """
 {POINTS}
-"""`;
+"""
+
+Remember: this is just one section of a longer blogpost. Do not write a concluding paragraph or section. Do not write an introduction. Just write the contents of the section.`;
 
 const WRITE_CONCLUSION = `${WRITE_SECTION_PREFIX}
 This is the last section of the blog post. Write a conclusion that summarizes the main points of the post. The outline of the post is:
@@ -206,6 +213,36 @@ const generateSubject = async (init, direction = null) => {
     throw new Error(error);
   }
 };
+
+// Generate a description for a blog post
+const generateDescription = async (init, subject, summary) => {
+  console.log(`Generating description for subject ${subject}...`);
+  try {
+    const response = await openai.createChatCompletion({
+      messages: [
+        {
+          role: "system",
+          content: init,
+        },
+        {
+          role: "user",
+          content: GENERATE_DESCRIPTION.replace("{SUBJECT}", subject).replace("{SUMMARY}", summary),
+        },
+      ],
+      model: "gpt-3.5-turbo",
+      max_tokens: 3000,
+      temperature: 0.75,
+      frequency_penalty: 0.4,
+      presence_penalty: 0.4,
+    });
+
+    const description = response.data.choices[0].message?.content.trim();
+    return description;
+  } catch (error) {
+    console.error(error);
+    throw new Error(error.message);
+  }
+}
 
 // Generate a blog post outline from a subject
 const generateOutline = async (init, subject) => {
@@ -447,12 +484,24 @@ const main = async () => {
   // Format the subject. Remove quotation marks, trim it
   subject = subject.replace(/"/g, "").trim();
 
+  let outline;
+  
   if (isShort) {
     post = await generateShortBlogPost(init, subject);
   } else {
-    const outline = await generateOutline(init, subject);
+    outline = await generateOutline(init, subject);
     post = await generateBlogPost(init, outline);
   }
+
+  // Generate description
+  const description = await generateDescription(init, subject, isShort ? post : outline);
+  // Append meta section to post
+  // Include the init, subject, direction, and description
+  post += `\n\n## Meta\n\n`;
+  post += `Init: ${init}\n\n`;
+  post += `Subject: ${subject}\n\n`;
+  post += `Direction: ${direction}\n\n`;
+  post += `Description: ${description}\n\n`;
 
   // If the posts directory doesn't exist, create it
   if (!fs.existsSync("./posts")) {
